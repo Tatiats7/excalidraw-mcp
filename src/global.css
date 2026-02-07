@@ -134,14 +134,18 @@ body {
 .excalidraw-container .excalidraw .App-toolbar,
 .excalidraw-container .excalidraw .layer-ui__wrapper__footer,
 .excalidraw-container .excalidraw .App-menu_top,
-.excalidraw-container .excalidraw .App-menu_top__left,
 .excalidraw-container .excalidraw .undo-redo-buttons,
 .excalidraw-container .excalidraw .HelpButton,
 .excalidraw-container .excalidraw .UserList,
 .excalidraw-container .excalidraw .main-menu-trigger,
 .excalidraw-container .excalidraw .welcome-screen-center,
-.excalidraw-container .excalidraw .welcome-screen-menu-hintContainer {
+.excalidraw-container .excalidraw .welcome-screen-menu-hintContainer,
+.excalidraw-container .excalidraw .layer-ui__wrapper__footer-right {
   display: none !important;
+}
+
+.excalidraw-container .excalidraw .App-menu_top__left {
+  visibility: hidden !important;
 }
 
 
