@@ -72,7 +72,7 @@ export function playStroke(elementType: string): void {
   const isText = elementType === "text";
   // Per-type gain normalization: shapes are most prominent, text medium, arrows lighter
   const typeGain = isLine ? 1.0 : isText ? 2.0 : 2.5;
-  const baseVolume = (0.4 + Math.random() * 0.3) * typeGain; // normalized
+  const baseVolume = (0.8 + Math.random() * 0.4) * typeGain; // normalized
   gain.gain.setValueAtTime(0, ctx.currentTime);
   gain.gain.linearRampToValueAtTime(baseVolume, ctx.currentTime + 0.03); // quick attack
   // Duration varies by element type
