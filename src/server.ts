@@ -311,6 +311,8 @@ Works in two modes:
 
 Place delete entries AFTER the elements you want to remove. The final render filters them out.
 
+**IMPORTANT**: Every element id must be unique. Never reuse an id after deleting it — always assign a new id to replacement elements.
+
 ## Animation Mode — Transform in Place
 
 Instead of building left-to-right and panning away, you can animate by DELETING elements and replacing them at the same position. Combined with slight camera moves, this creates smooth visual transformations during streaming.
