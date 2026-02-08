@@ -162,10 +162,10 @@ Uses 2 camera positions: start zoomed in (M) for title, then zoom out (L) to rev
 [
   {"type":"cameraUpdate","width":400,"height":300,"x":200,"y":-20},
   {"type":"text","id":"ti","x":280,"y":10,"text":"Photosynthesis","fontSize":28,"strokeColor":"#1e1e1e"},
-  {"type":"text","id":"fo","x":245,"y":48,"text":"6CO2 + 6H2O --> C6H12O6 + 6O2","fontSize":16,"strokeColor":"#b0b0b0"},
+  {"type":"text","id":"fo","x":245,"y":48,"text":"6CO2 + 6H2O --> C6H12O6 + 6O2","fontSize":16,"strokeColor":"#757575"},
   {"type":"cameraUpdate","width":800,"height":600,"x":0,"y":-20},
   {"type":"rectangle","id":"lf","x":150,"y":90,"width":520,"height":380,"backgroundColor":"#d3f9d8","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#22c55e","strokeWidth":1,"opacity":35},
-  {"type":"text","id":"lfl","x":170,"y":96,"text":"Inside the Leaf","fontSize":16,"strokeColor":"#22c55e"},
+  {"type":"text","id":"lfl","x":170,"y":96,"text":"Inside the Leaf","fontSize":16,"strokeColor":"#15803d"},
   {"type":"rectangle","id":"lr","x":190,"y":190,"width":160,"height":70,"backgroundColor":"#fff3bf","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#f59e0b","label":{"text":"Light Reactions","fontSize":16}},
   {"type":"arrow","id":"a1","x":350,"y":225,"width":120,"height":0,"points":[[0,0],[120,0]],"strokeColor":"#1e1e1e","strokeWidth":2,"endArrowhead":"arrow","label":{"text":"ATP","fontSize":14}},
   {"type":"rectangle","id":"cc","x":470,"y":190,"width":160,"height":70,"backgroundColor":"#d0bfff","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#8b5cf6","label":{"text":"Calvin Cycle","fontSize":16}},
@@ -225,12 +225,12 @@ This demonstrates camera panning across a large canvas to tell a story. Two brow
   {"type":"text","id":"brnd","x":290,"y":225,"text":"Claude.ai","fontSize":28,"strokeColor":"#1e1e1e"},
   {"type":"cameraUpdate","width":600,"height":450,"x":70,"y":145},
   {"type":"rectangle","id":"ta","x":110,"y":340,"width":520,"height":100,"backgroundColor":"#ffffff","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1},
-  {"type":"text","id":"ph","x":130,"y":355,"text":"How can I help you today?","fontSize":18,"strokeColor":"#b0b0b0"},
+  {"type":"text","id":"ph","x":130,"y":355,"text":"How can I help you today?","fontSize":18,"strokeColor":"#757575"},
   {"type":"rectangle","id":"plus","x":125,"y":408,"width":32,"height":32,"roundness":{"type":3},"strokeColor":"#b0b0b0","strokeWidth":1,"label":{"text":"+","fontSize":18}},
-  {"type":"text","id":"mdl","x":510,"y":416,"text":"Opus 4.6","fontSize":14,"strokeColor":"#b0b0b0"},
+  {"type":"text","id":"mdl","x":510,"y":416,"text":"Opus 4.6","fontSize":14,"strokeColor":"#757575"},
   {"type":"ellipse","id":"sendb","x":596,"y":410,"width":28,"height":28,"backgroundColor":"#c4795b","fillStyle":"solid","strokeColor":"#c4795b","strokeWidth":1},
   {"type":"cameraUpdate","width":400,"height":300,"x":40,"y":290},
-  {"type":"text","id":"plushl","x":131,"y":406,"text":"+","fontSize":30,"strokeColor":"#4a9eed"},
+  {"type":"text","id":"plushl","x":131,"y":406,"text":"+","fontSize":30,"strokeColor":"#2563eb"},
   {"type":"rectangle","id":"dd","x":115,"y":448,"width":250,"height":92,"backgroundColor":"#ffffff","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1},
   {"type":"text","id":"dd1","x":130,"y":455,"text":"@ Add files and photos","fontSize":16,"strokeColor":"#555555"},
   {"type":"text","id":"dd2","x":130,"y":480,"text":"~ Research","fontSize":16,"strokeColor":"#555555"},
@@ -250,11 +250,11 @@ This demonstrates camera panning across a large canvas to tell a story. Two brow
   {"type":"text","id":"sb3","x":845,"y":188,"text":"Usage","fontSize":16,"strokeColor":"#555555"},
   {"type":"text","id":"sb4","x":845,"y":213,"text":"Capabilities","fontSize":16,"strokeColor":"#555555"},
   {"type":"rectangle","id":"sbhi","x":840,"y":237,"width":130,"height":28,"backgroundColor":"#f5f0e8","fillStyle":"solid","roundness":{"type":3},"strokeColor":"transparent"},
-  {"type":"text","id":"sb5","x":845,"y":239,"text":"Connectors","fontSize":16,"strokeColor":"#c4795b"},
+  {"type":"text","id":"sb5","x":845,"y":239,"text":"Connectors","fontSize":16,"strokeColor":"#8b4513"},
   {"type":"text","id":"sb6","x":845,"y":272,"text":"Claude Code","fontSize":16,"strokeColor":"#555555"},
   {"type":"arrow","id":"div","x":975,"y":92,"width":0,"height":425,"points":[[0,0],[0,425]],"strokeColor":"#e8e8e8","strokeWidth":1,"endArrowhead":null,"startArrowhead":null},
   {"type":"text","id":"cnh","x":1000,"y":92,"text":"Connectors","fontSize":24,"strokeColor":"#1e1e1e"},
-  {"type":"text","id":"cns","x":1000,"y":120,"text":"Allow Claude to reference apps and services.","fontSize":14,"strokeColor":"#b0b0b0"},
+  {"type":"text","id":"cns","x":1000,"y":120,"text":"Allow Claude to reference apps and services.","fontSize":14,"strokeColor":"#757575"},
   {"type":"rectangle","id":"bcb","x":1330,"y":92,"width":150,"height":32,"roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1,"label":{"text":"Browse connectors","fontSize":14}},
   {"type":"ellipse","id":"ci1","x":1005,"y":157,"width":28,"height":28,"backgroundColor":"#dbe4ff","fillStyle":"solid","strokeColor":"#d4d4d0","strokeWidth":1},
   {"type":"text","id":"cn1","x":1045,"y":161,"text":"Figma","fontSize":16,"strokeColor":"#1e1e1e"},
@@ -278,12 +278,12 @@ This demonstrates camera panning across a large canvas to tell a story. Two brow
   {"type":"text","id":"ul","x":960,"y":278,"text":"Server URL","fontSize":16,"strokeColor":"#555555"},
   {"type":"rectangle","id":"urli","x":960,"y":300,"width":380,"height":34,"backgroundColor":"#ffffff","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1},
   {"type":"text","id":"uv","x":968,"y":306,"text":"https://excalidraw-mcp-app.vercel.app/mcp","fontSize":18,"strokeColor":"#1e1e1e"},
-  {"type":"text","id":"can","x":1220,"y":388,"text":"Cancel","fontSize":16,"strokeColor":"#999999"},
-  {"type":"rectangle","id":"addb","x":1260,"y":380,"width":100,"height":36,"backgroundColor":"#c4795b","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#c4795b","strokeWidth":1},
+  {"type":"text","id":"can","x":1220,"y":388,"text":"Cancel","fontSize":16,"strokeColor":"#666666"},
+  {"type":"rectangle","id":"addb","x":1260,"y":380,"width":100,"height":36,"backgroundColor":"#9a5030","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#9a5030","strokeWidth":1},
   {"type":"text","id":"addt","x":1288,"y":388,"text":"Add","fontSize":16,"strokeColor":"#ffffff"},
   {"type":"arrow","id":"aurl","x":920,"y":317,"width":40,"height":0,"points":[[0,0],[40,0]],"strokeColor":"#4a9eed","strokeWidth":2,"endArrowhead":"arrow","startArrowhead":null},
   {"type":"arrow","id":"ptr","x":1400,"y":420,"width":-60,"height":-20,"points":[[0,0],[-60,-20]],"strokeColor":"#4a9eed","strokeWidth":2,"endArrowhead":"arrow","startArrowhead":null},
-  {"type":"text","id":"enj","x":1080,"y":455,"text":"Enjoy!","fontSize":36,"strokeColor":"#4a9eed"},
+  {"type":"text","id":"enj","x":1080,"y":455,"text":"Enjoy!","fontSize":36,"strokeColor":"#2563eb"},
   {"type":"ellipse","id":"st1","x":1070,"y":465,"width":10,"height":10,"backgroundColor":"#f59e0b","fillStyle":"solid","strokeColor":"#f59e0b","strokeWidth":1},
   {"type":"ellipse","id":"st2","x":1195,"y":460,"width":10,"height":10,"backgroundColor":"#22c55e","fillStyle":"solid","strokeColor":"#22c55e","strokeWidth":1},
   {"type":"ellipse","id":"st3","x":1210,"y":475,"width":8,"height":8,"backgroundColor":"#8b5cf6","fillStyle":"solid","strokeColor":"#8b5cf6","strokeWidth":1},
@@ -302,7 +302,7 @@ The saved state (including any user edits made in fullscreen) is loaded from the
 ## Tips
 - Do NOT call read_me again — you already have everything you need
 - Use the color palette consistently
-- Make sure text is readable (never use same text color as background color) 
+- **Text contrast is CRITICAL** — never use light gray (#b0b0b0, #999) on white backgrounds. Minimum text color on white: #757575. For colored text on light fills, use dark variants (#15803d not #22c55e, #2563eb not #4a9eed). White text needs dark backgrounds (#9a5030 not #c4795b)
 - Do NOT use emoji in text — they don't render in Excalidraw's font
 - cameraUpdate is MAGICAL and users love it! please use it a lot to guide the user's attention as you draw. It makes a huge difference in readability and engagement.
 `;
