@@ -96,6 +96,20 @@ Canvas background is white.
 Arrow: \`"startBinding": { "elementId": "r1", "fixedPoint": [1, 0.5] }\`
 fixedPoint: top=[0.5,0], bottom=[0.5,1], left=[0,0.5], right=[1,0.5]
 
+**cameraUpdate** (pseudo-element — controls the viewport, not drawn):
+\`{ "type": "cameraUpdate", "width": 800, "height": 600, "x": 0, "y": 0 }\`
+- x, y: top-left corner of the visible area (scene coordinates)
+- width, height: size of the visible area — MUST be 4:3 ratio (400×300, 600×450, 800×600, 1200×900, 1600×1200)
+- Animates smoothly between positions — use multiple cameraUpdates to guide attention as you draw
+- No \`id\` needed — this is not a drawn element
+
+**delete** (pseudo-element — removes elements by id):
+\`{ "type": "delete", "ids": "b2,a1,t3" }\`
+- Comma-separated list of element ids to remove
+- Also removes bound text elements (matching \`containerId\`)
+- Place AFTER the elements you want to remove
+- Never reuse a deleted id — always assign new ids to replacements
+
 ### Drawing Order (CRITICAL for streaming)
 - Array order = z-order (first = back, last = front)
 - **Emit progressively**: background → shape → its label → its arrows → next shape
@@ -136,7 +150,7 @@ ALWAYS use one of these exact sizes. Non-4:3 viewports cause distortion.
 - Leave 20-30px gaps between elements minimum
 - Prefer fewer, larger elements over many tiny ones
 
-ALWAYS start with a \`cameraUpdate\` as the FIRST element:
+ALWAYS start with a \`cameraUpdate\` as the FIRST element. For example:
 \`{ "type": "cameraUpdate", "width": 800, "height": 600, "x": 0, "y": 0 }\`
 
 - x, y: top-left corner of visible area (scene coordinates)
@@ -200,96 +214,68 @@ Common mistakes to avoid:
 - **Elements overlap when y-coordinates are close** — always check that text, boxes, and labels don't stack on top of each other (e.g., an output box overlapping a zone label)
 - **Draw art/illustrations LAST** — cute decorations (sun, stars, icons) should appear as the final drawing step so they don't distract from the main content being built
 
-## Advanced Example — Storyboard
+## Sequence flow Diagram Example
 
-Example prompt: "Create awesome storyboard excalidraw animation explaining how to install Excalidraw connector to claude.ai"
+Example prompt: "show a sequence diagram explaining MCP Apps"
 
-This demonstrates camera panning across a large canvas to tell a story. Two browser windows are laid out side-by-side, and 6 cameraUpdates guide the viewer through the narrative:
+This demonstrates a UML-style sequence diagram with 4 actors (User, Agent, App iframe, MCP Server), dashed lifelines, and labeled arrows showing the full MCP Apps request/response flow. Camera pans progressively across the diagram:
 
-- **Camera 1** (800x600): Wide shot of the Claude.ai chat window — draw the empty browser chrome, title bar, tabs, logo, and "Claude.ai" text
-- **Camera 2** (600x450): Pull back to mid-view — draw the textarea with placeholder, + button, model selector, send button. Logo is now above the frame
-- **Camera 3** (400x300): Zoom into the + button area — draw the highlighted + button and dropdown menu with "Manage connectors" active
-- Draw the curved arrow connecting to Settings window (while still on Camera 3)
-- **Camera 4** (800x600): Pan right to Settings window — draw the full settings page with sidebar, connector list (Figma, GitHub, Slack), and "+ Add custom connector" button with arrow
-- **Camera 5** (600x450): Zoom into modal — draw the modal overlay with "excalidraw" name and server URL filled in, ending with arrows pointing to URL and Add button
+- **Camera 1** (600x450): Title "MCP Apps — Sequence Flow"
+- **Cameras 2–5** (400x300 each): Zoom into each actor column right-to-left — draw header box + dashed lifeline for Server, App, Agent, User. Right-to-left so the camera snakes smoothly: pan left across actors, then pan right following the first message arrows
+- **Camera 6** (400x300): Zoom into User — draw stick figure (head + body)
+- **Camera 7** (600x450): Zoom out — draw first message arrows: user prompt → agent, agent tools/call → server, tool result back, result forwarded to app iframe
+- **Camera 8** (600x450): Pan down — draw user interaction with app, app requesting tools/call back to agent
+- **Camera 9** (600x450): Pan further down — agent forwards to server, fresh data flows back through the chain, context update from app to agent
+- **Camera 10** (800x600): Final zoom-out showing the complete sequence
 
 \`\`\`json
 [
-  {"type":"cameraUpdate","width":800,"height":600,"x":-30,"y":0},
-  {"type":"rectangle","id":"wf1","x":20,"y":40,"width":700,"height":500,"backgroundColor":"#fafaf7","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1},
-  {"type":"rectangle","id":"tb1","x":20,"y":40,"width":700,"height":38,"backgroundColor":"#ededed","fillStyle":"solid","strokeColor":"#d4d4d0","strokeWidth":1},
-  {"type":"ellipse","id":"dr1","x":42,"y":50,"width":12,"height":12,"backgroundColor":"#ff5f57","fillStyle":"solid","strokeColor":"#ff5f57","strokeWidth":1},
-  {"type":"ellipse","id":"dy1","x":60,"y":50,"width":12,"height":12,"backgroundColor":"#febc2e","fillStyle":"solid","strokeColor":"#febc2e","strokeWidth":1},
-  {"type":"ellipse","id":"dg1","x":78,"y":50,"width":12,"height":12,"backgroundColor":"#28c840","fillStyle":"solid","strokeColor":"#28c840","strokeWidth":1},
-  {"type":"rectangle","id":"chtab","x":310,"y":48,"width":56,"height":24,"backgroundColor":"#ffffff","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1,"label":{"text":"Chat","fontSize":14}},
-  {"type":"rectangle","id":"cwtab","x":370,"y":48,"width":70,"height":24,"roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1,"label":{"text":"Cowork","fontSize":14}},
-  {"type":"text","id":"logo","x":345,"y":155,"text":"*","fontSize":64,"strokeColor":"#D77655"},
-  {"type":"text","id":"brnd","x":290,"y":225,"text":"Claude.ai","fontSize":28,"strokeColor":"#1e1e1e"},
-  {"type":"cameraUpdate","width":600,"height":450,"x":70,"y":145},
-  {"type":"rectangle","id":"ta","x":110,"y":340,"width":520,"height":100,"backgroundColor":"#ffffff","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1},
-  {"type":"text","id":"ph","x":130,"y":355,"text":"How can I help you today?","fontSize":18,"strokeColor":"#757575"},
-  {"type":"rectangle","id":"plus","x":125,"y":408,"width":32,"height":32,"roundness":{"type":3},"strokeColor":"#b0b0b0","strokeWidth":1,"label":{"text":"+","fontSize":18}},
-  {"type":"text","id":"mdl","x":510,"y":416,"text":"Opus 4.6","fontSize":14,"strokeColor":"#757575"},
-  {"type":"ellipse","id":"sendb","x":596,"y":410,"width":28,"height":28,"backgroundColor":"#c4795b","fillStyle":"solid","strokeColor":"#c4795b","strokeWidth":1},
-  {"type":"cameraUpdate","width":400,"height":300,"x":40,"y":290},
-  {"type":"text","id":"plushl","x":131,"y":406,"text":"+","fontSize":30,"strokeColor":"#2563eb"},
-  {"type":"rectangle","id":"dd","x":115,"y":448,"width":250,"height":92,"backgroundColor":"#ffffff","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1},
-  {"type":"text","id":"dd1","x":130,"y":455,"text":"@ Add files and photos","fontSize":16,"strokeColor":"#555555"},
-  {"type":"text","id":"dd2","x":130,"y":480,"text":"~ Research","fontSize":16,"strokeColor":"#555555"},
-  {"type":"rectangle","id":"dd3h","x":119,"y":502,"width":242,"height":28,"backgroundColor":"#f5f0e8","fillStyle":"solid","roundness":{"type":3},"strokeColor":"transparent"},
-  {"type":"text","id":"dd3","x":130,"y":506,"text":"# Manage connectors","fontSize":16,"strokeColor":"#1e1e1e"},
-  {"type":"rectangle","id":"dd3a","x":119,"y":502,"width":242,"height":28,"backgroundColor":"#c4795b","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#c4795b","opacity":15},
-  {"type":"arrow","id":"crv","x":365,"y":515,"width":460,"height":-180,"points":[[0,0],[180,-60],[460,-180]],"strokeColor":"#c4795b","strokeWidth":2,"strokeStyle":"dashed","endArrowhead":"arrow","startArrowhead":null},
-  {"type":"cameraUpdate","width":800,"height":600,"x":760,"y":0},
-  {"type":"rectangle","id":"sw","x":820,"y":40,"width":680,"height":500,"backgroundColor":"#fafaf7","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1},
-  {"type":"rectangle","id":"stb","x":820,"y":40,"width":680,"height":38,"backgroundColor":"#ededed","fillStyle":"solid","strokeColor":"#d4d4d0","strokeWidth":1},
-  {"type":"ellipse","id":"dr2","x":842,"y":50,"width":12,"height":12,"backgroundColor":"#ff5f57","fillStyle":"solid","strokeColor":"#ff5f57","strokeWidth":1},
-  {"type":"ellipse","id":"dy2","x":860,"y":50,"width":12,"height":12,"backgroundColor":"#febc2e","fillStyle":"solid","strokeColor":"#febc2e","strokeWidth":1},
-  {"type":"ellipse","id":"dg2","x":878,"y":50,"width":12,"height":12,"backgroundColor":"#28c840","fillStyle":"solid","strokeColor":"#28c840","strokeWidth":1},
-  {"type":"text","id":"sttl","x":845,"y":92,"text":"Settings","fontSize":28,"strokeColor":"#1e1e1e"},
-  {"type":"text","id":"sb1","x":845,"y":138,"text":"General","fontSize":16,"strokeColor":"#555555"},
-  {"type":"text","id":"sb2","x":845,"y":163,"text":"Account","fontSize":16,"strokeColor":"#555555"},
-  {"type":"text","id":"sb3","x":845,"y":188,"text":"Usage","fontSize":16,"strokeColor":"#555555"},
-  {"type":"text","id":"sb4","x":845,"y":213,"text":"Capabilities","fontSize":16,"strokeColor":"#555555"},
-  {"type":"rectangle","id":"sbhi","x":840,"y":237,"width":130,"height":28,"backgroundColor":"#f5f0e8","fillStyle":"solid","roundness":{"type":3},"strokeColor":"transparent"},
-  {"type":"text","id":"sb5","x":845,"y":239,"text":"Connectors","fontSize":16,"strokeColor":"#8b4513"},
-  {"type":"text","id":"sb6","x":845,"y":272,"text":"Claude Code","fontSize":16,"strokeColor":"#555555"},
-  {"type":"arrow","id":"div","x":975,"y":92,"width":0,"height":425,"points":[[0,0],[0,425]],"strokeColor":"#e8e8e8","strokeWidth":1,"endArrowhead":null,"startArrowhead":null},
-  {"type":"text","id":"cnh","x":1000,"y":92,"text":"Connectors","fontSize":24,"strokeColor":"#1e1e1e"},
-  {"type":"text","id":"cns","x":1000,"y":120,"text":"Allow Claude to reference apps and services.","fontSize":14,"strokeColor":"#757575"},
-  {"type":"rectangle","id":"bcb","x":1330,"y":92,"width":150,"height":32,"roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1,"label":{"text":"Browse connectors","fontSize":14}},
-  {"type":"ellipse","id":"ci1","x":1005,"y":157,"width":28,"height":28,"backgroundColor":"#dbe4ff","fillStyle":"solid","strokeColor":"#d4d4d0","strokeWidth":1},
-  {"type":"text","id":"cn1","x":1045,"y":161,"text":"Figma","fontSize":16,"strokeColor":"#1e1e1e"},
-  {"type":"rectangle","id":"cb1","x":1380,"y":157,"width":90,"height":28,"roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1,"label":{"text":"Connect","fontSize":14}},
-  {"type":"ellipse","id":"ci2","x":1005,"y":198,"width":28,"height":28,"backgroundColor":"#e8e8e8","fillStyle":"solid","strokeColor":"#d4d4d0","strokeWidth":1},
-  {"type":"text","id":"cn2","x":1045,"y":203,"text":"GitHub","fontSize":16,"strokeColor":"#1e1e1e"},
-  {"type":"rectangle","id":"cb2","x":1380,"y":198,"width":90,"height":28,"roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1,"label":{"text":"Connect","fontSize":14}},
-  {"type":"ellipse","id":"ci3","x":1005,"y":240,"width":28,"height":28,"backgroundColor":"#d3f9d8","fillStyle":"solid","strokeColor":"#d4d4d0","strokeWidth":1},
-  {"type":"text","id":"cn3","x":1045,"y":244,"text":"Slack","fontSize":16,"strokeColor":"#1e1e1e"},
-  {"type":"rectangle","id":"cb3","x":1380,"y":240,"width":90,"height":28,"roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1,"label":{"text":"Connect","fontSize":14}},
-  {"type":"arrow","id":"sep","x":1000,"y":282,"width":470,"height":0,"points":[[0,0],[470,0]],"strokeColor":"#e8e8e8","strokeWidth":1,"endArrowhead":null,"startArrowhead":null},
-  {"type":"rectangle","id":"acb","x":1000,"y":298,"width":220,"height":36,"backgroundColor":"#f5f0e8","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#c4795b","strokeWidth":1,"label":{"text":"+ Add custom connector","fontSize":14}},
-  {"type":"cameraUpdate","width":600,"height":450,"x":850,"y":65},
-  {"type":"arrow","id":"cur","x":1250,"y":340,"width":-20,"height":-10,"points":[[0,0],[-20,-10]],"strokeColor":"#c4795b","strokeWidth":2,"endArrowhead":"arrow","startArrowhead":null},
-  {"type":"rectangle","id":"ov","x":820,"y":78,"width":680,"height":462,"backgroundColor":"#888888","fillStyle":"solid","strokeColor":"transparent","opacity":30},
-  {"type":"rectangle","id":"md","x":940,"y":150,"width":420,"height":280,"backgroundColor":"#ffffff","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1},
-  {"type":"text","id":"mdt","x":960,"y":168,"text":"Add custom connector","fontSize":22,"strokeColor":"#1e1e1e"},
-  {"type":"text","id":"nl","x":960,"y":210,"text":"Name","fontSize":16,"strokeColor":"#555555"},
-  {"type":"rectangle","id":"ni","x":960,"y":232,"width":380,"height":34,"backgroundColor":"#ffffff","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1},
-  {"type":"text","id":"nv","x":972,"y":238,"text":"Excalidraw","fontSize":18,"strokeColor":"#1e1e1e"},
-  {"type":"text","id":"ul","x":960,"y":278,"text":"Server URL","fontSize":16,"strokeColor":"#555555"},
-  {"type":"rectangle","id":"urli","x":960,"y":300,"width":380,"height":34,"backgroundColor":"#ffffff","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#d4d4d0","strokeWidth":1},
-  {"type":"text","id":"uv","x":968,"y":306,"text":"https://excalidraw-mcp-app.vercel.app/mcp","fontSize":18,"strokeColor":"#1e1e1e"},
-  {"type":"text","id":"can","x":1220,"y":388,"text":"Cancel","fontSize":16,"strokeColor":"#666666"},
-  {"type":"rectangle","id":"addb","x":1260,"y":380,"width":100,"height":36,"backgroundColor":"#9a5030","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#9a5030","strokeWidth":1},
-  {"type":"text","id":"addt","x":1288,"y":388,"text":"Add","fontSize":16,"strokeColor":"#ffffff"},
-  {"type":"arrow","id":"aurl","x":920,"y":317,"width":40,"height":0,"points":[[0,0],[40,0]],"strokeColor":"#4a9eed","strokeWidth":2,"endArrowhead":"arrow","startArrowhead":null},
-  {"type":"arrow","id":"ptr","x":1400,"y":420,"width":-60,"height":-20,"points":[[0,0],[-60,-20]],"strokeColor":"#4a9eed","strokeWidth":2,"endArrowhead":"arrow","startArrowhead":null},
-  {"type":"text","id":"enj","x":1080,"y":455,"text":"Enjoy!","fontSize":36,"strokeColor":"#2563eb"},
-  {"type":"ellipse","id":"st1","x":1070,"y":465,"width":10,"height":10,"backgroundColor":"#f59e0b","fillStyle":"solid","strokeColor":"#f59e0b","strokeWidth":1},
-  {"type":"ellipse","id":"st2","x":1195,"y":460,"width":10,"height":10,"backgroundColor":"#22c55e","fillStyle":"solid","strokeColor":"#22c55e","strokeWidth":1},
-  {"type":"ellipse","id":"st3","x":1210,"y":475,"width":8,"height":8,"backgroundColor":"#8b5cf6","fillStyle":"solid","strokeColor":"#8b5cf6","strokeWidth":1},
-  {"type":"ellipse","id":"st4","x":1060,"y":480,"width":8,"height":8,"backgroundColor":"#ec4899","fillStyle":"solid","strokeColor":"#ec4899","strokeWidth":1}
+  {"type":"cameraUpdate","width":600,"height":450,"x":80,"y":-10},
+  {"type":"text","id":"title","x":200,"y":15,"text":"MCP Apps — Sequence Flow","fontSize":24,"strokeColor":"#1e1e1e"},
+
+  {"type":"cameraUpdate","width":400,"height":300,"x":450,"y":-5},
+  {"type":"rectangle","id":"sHead","x":600,"y":60,"width":130,"height":40,"backgroundColor":"#ffd8a8","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#f59e0b","strokeWidth":2,"label":{"text":"MCP Server","fontSize":16}},
+  {"type":"arrow","id":"sLine","x":665,"y":100,"width":0,"height":490,"points":[[0,0],[0,490]],"strokeColor":"#b0b0b0","strokeWidth":1,"strokeStyle":"dashed","endArrowhead":null},
+
+  {"type":"cameraUpdate","width":400,"height":300,"x":250,"y":-5},
+  {"type":"rectangle","id":"appHead","x":400,"y":60,"width":130,"height":40,"backgroundColor":"#b2f2bb","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#22c55e","strokeWidth":2,"label":{"text":"App iframe","fontSize":16}},
+  {"type":"arrow","id":"appLine","x":465,"y":100,"width":0,"height":490,"points":[[0,0],[0,490]],"strokeColor":"#b0b0b0","strokeWidth":1,"strokeStyle":"dashed","endArrowhead":null},
+
+  {"type":"cameraUpdate","width":400,"height":300,"x":80,"y":-5},
+  {"type":"rectangle","id":"aHead","x":230,"y":60,"width":100,"height":40,"backgroundColor":"#d0bfff","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#8b5cf6","strokeWidth":2,"label":{"text":"Agent","fontSize":16}},
+  {"type":"arrow","id":"aLine","x":280,"y":100,"width":0,"height":490,"points":[[0,0],[0,490]],"strokeColor":"#b0b0b0","strokeWidth":1,"strokeStyle":"dashed","endArrowhead":null},
+
+  {"type":"cameraUpdate","width":400,"height":300,"x":-10,"y":-5},
+  {"type":"rectangle","id":"uHead","x":60,"y":60,"width":100,"height":40,"backgroundColor":"#a5d8ff","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#4a9eed","strokeWidth":2,"label":{"text":"User","fontSize":16}},
+  {"type":"arrow","id":"uLine","x":110,"y":100,"width":0,"height":490,"points":[[0,0],[0,490]],"strokeColor":"#b0b0b0","strokeWidth":1,"strokeStyle":"dashed","endArrowhead":null},
+
+  {"type":"cameraUpdate","width":400,"height":300,"x":-40,"y":50},
+  {"type":"ellipse","id":"uh","x":58,"y":110,"width":20,"height":20,"backgroundColor":"#a5d8ff","fillStyle":"solid","strokeColor":"#4a9eed","strokeWidth":2},
+  {"type":"rectangle","id":"ub","x":57,"y":132,"width":22,"height":26,"backgroundColor":"#a5d8ff","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#4a9eed","strokeWidth":2},
+
+  {"type":"cameraUpdate","width":600,"height":450,"x":-20,"y":-30},
+  {"type":"arrow","id":"m1","x":110,"y":135,"width":170,"height":0,"points":[[0,0],[170,0]],"strokeColor":"#1e1e1e","strokeWidth":2,"endArrowhead":"arrow","label":{"text":"display a chart","fontSize":14}},
+  {"type":"rectangle","id":"note1","x":130,"y":162,"width":310,"height":26,"backgroundColor":"#fff3bf","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#f59e0b","strokeWidth":1,"opacity":50,"label":{"text":"Interactive app rendered in chat","fontSize":14}},
+
+  {"type":"cameraUpdate","width":600,"height":450,"x":170,"y":25},
+  {"type":"arrow","id":"m2","x":280,"y":210,"width":385,"height":0,"points":[[0,0],[385,0]],"strokeColor":"#8b5cf6","strokeWidth":2,"endArrowhead":"arrow","label":{"text":"tools/call","fontSize":16}},
+  {"type":"arrow","id":"m3","x":665,"y":250,"width":-385,"height":0,"points":[[0,0],[-385,0]],"strokeColor":"#f59e0b","strokeWidth":2,"endArrowhead":"arrow","strokeStyle":"dashed","label":{"text":"tool input/result","fontSize":16}},
+  {"type":"arrow","id":"m4","x":280,"y":290,"width":185,"height":0,"points":[[0,0],[185,0]],"strokeColor":"#8b5cf6","strokeWidth":2,"endArrowhead":"arrow","strokeStyle":"dashed","label":{"text":"result → app","fontSize":16}},
+
+  {"type":"cameraUpdate","width":600,"height":450,"x":-10,"y":135},
+  {"type":"arrow","id":"m5","x":110,"y":340,"width":355,"height":0,"points":[[0,0],[355,0]],"strokeColor":"#4a9eed","strokeWidth":2,"endArrowhead":"arrow","label":{"text":"user interacts","fontSize":16}},
+  {"type":"arrow","id":"m6","x":465,"y":380,"width":-185,"height":0,"points":[[0,0],[-185,0]],"strokeColor":"#22c55e","strokeWidth":2,"endArrowhead":"arrow","label":{"text":"tools/call request","fontSize":16}},
+
+  {"type":"cameraUpdate","width":600,"height":450,"x":170,"y":235},
+  {"type":"arrow","id":"m7","x":280,"y":420,"width":385,"height":0,"points":[[0,0],[385,0]],"strokeColor":"#8b5cf6","strokeWidth":2,"endArrowhead":"arrow","label":{"text":"tools/call (forwarded)","fontSize":16}},
+  {"type":"arrow","id":"m8","x":665,"y":460,"width":-385,"height":0,"points":[[0,0],[-385,0]],"strokeColor":"#f59e0b","strokeWidth":2,"endArrowhead":"arrow","strokeStyle":"dashed","label":{"text":"fresh data","fontSize":16}},
+  {"type":"arrow","id":"m9","x":280,"y":500,"width":185,"height":0,"points":[[0,0],[185,0]],"strokeColor":"#8b5cf6","strokeWidth":2,"endArrowhead":"arrow","strokeStyle":"dashed","label":{"text":"fresh data","fontSize":16}},
+
+  {"type":"cameraUpdate","width":600,"height":450,"x":50,"y":327},
+  {"type":"rectangle","id":"note2","x":130,"y":522,"width":310,"height":26,"backgroundColor":"#d3f9d8","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#22c55e","strokeWidth":1,"opacity":50,"label":{"text":"App updates with new data","fontSize":14}},
+  {"type":"arrow","id":"m10","x":465,"y":570,"width":-185,"height":0,"points":[[0,0],[-185,0]],"strokeColor":"#22c55e","strokeWidth":2,"endArrowhead":"arrow","strokeStyle":"dashed","label":{"text":"context update","fontSize":16}},
+
+  {"type":"cameraUpdate","width":800,"height":600,"x":-5,"y":2}
 ]
 \`\`\`
 
