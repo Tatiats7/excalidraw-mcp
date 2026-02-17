@@ -50,6 +50,39 @@ Example prompts:
 - "Draw a cute cat using excalidraw"
 - "Draw an architecture diagram showing a user connecting to an API server which talks to a database"
 
+## Voice Narration
+
+Diagrams can be narrated with text-to-speech audio using [ElevenLabs](https://elevenlabs.io/). As the diagram streams in, voice narration plays alongside the drawing animations.
+
+To enable voice narration, set the `ELEVENLABS_API_KEY` environment variable:
+
+```json
+{
+  "mcpServers": {
+    "excalidraw": {
+      "command": "node",
+      "args": ["/path/to/excalidraw-mcp-app/dist/index.js", "--stdio"],
+      "env": {
+        "ELEVENLABS_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+Optionally, set `ELEVENLABS_VOICE_ID` to use a specific voice (e.g. your own cloned voice):
+
+```json
+"env": {
+  "ELEVENLABS_API_KEY": "your-api-key-here",
+  "ELEVENLABS_VOICE_ID": "your-voice-id-here"
+}
+```
+
+If no voice ID is provided, the default ElevenLabs voice is used.
+
+**Note:** Voice narration is not automatic — you need to explicitly ask the model to narrate (e.g. "draw a diagram explaining photosynthesis and speak through it").
+
 ## What are MCP Apps and how can I build one?
 
 Text responses can only go so far. Sometimes users need to interact with data, not just read about it. [MCP Apps](https://github.com/modelcontextprotocol/ext-apps/) is an official Model Context Protocol extension that lets servers return interactive HTML interfaces (data visualizations, forms, dashboards) that render directly in the chat.

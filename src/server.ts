@@ -113,6 +113,14 @@ fixedPoint: top=[0.5,0], bottom=[0.5,1], left=[0,0.5], right=[1,0.5]
 - Place AFTER the elements you want to remove
 - Never reuse a deleted id — always assign new ids to replacements
 
+**voice** (pseudo-element — triggers text-to-speech narration):
+\`{ "type": "voice", "text": "This is the input layer of the neural network." }\`
+- Place BEFORE the elements it describes — audio starts while shapes draw on screen
+- Keep narrations short: maximum 1 sentence per voice element (longer text = more latency)
+- Interleave with drawing: voice → cameraUpdate → shapes for that section → voice → next section
+- No \`id\` needed — this is not a drawn element
+- Silently ignored if TTS is not configured on the server
+
 ### Drawing Order (CRITICAL for streaming)
 - Array order = z-order (first = back, last = front)
 - **Emit progressively**: background → shape → its label → its arrows → next shape
@@ -172,19 +180,24 @@ Tip: For large diagrams, emit a cameraUpdate to focus on each section as you dra
 
 Example prompt: "Explain how photosynthesis works"
 
-Uses 2 camera positions: start zoomed in (M) for title, then zoom out (L) to reveal the full diagram. Sun art drawn last as a finishing touch.
+Uses 2 camera positions: start zoomed in (M) for title, then zoom out (L) to reveal the full diagram. Sun art drawn last as a finishing touch. Voice narrations interleaved to explain each section as it appears.
 
+- **Voice 1**: Introduce the topic as the title appears
 - **Camera 1** (400x300): Draw the title "Photosynthesis" and formula subtitle zoomed in
+- **Voice 2**: Transition narration as camera zooms out
 - **Camera 2** (800x600): Zoom out — draw the leaf zone, process flow (Light Reactions → Calvin Cycle), inputs (Sunlight, Water, CO2), outputs (O2, Glucose), and finally a cute 8-ray sun
 
 \`\`\`json
 [
+  {"type":"voice","text":"Let me walk you through how photosynthesis works — the process that powers nearly all life on Earth."},
   {"type":"cameraUpdate","width":400,"height":300,"x":200,"y":-20},
   {"type":"text","id":"ti","x":280,"y":10,"text":"Photosynthesis","fontSize":28,"strokeColor":"#1e1e1e"},
   {"type":"text","id":"fo","x":245,"y":48,"text":"6CO2 + 6H2O --> C6H12O6 + 6O2","fontSize":16,"strokeColor":"#757575"},
+  {"type":"voice","text":"Here's the overall formula. Now let's zoom out and see the full process inside a leaf."},
   {"type":"cameraUpdate","width":800,"height":600,"x":0,"y":-20},
   {"type":"rectangle","id":"lf","x":150,"y":90,"width":520,"height":380,"backgroundColor":"#d3f9d8","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#22c55e","strokeWidth":1,"opacity":35},
   {"type":"text","id":"lfl","x":170,"y":96,"text":"Inside the Leaf","fontSize":16,"strokeColor":"#15803d"},
+  {"type":"voice","text":"Inside the leaf, photosynthesis happens in two stages. Light reactions capture sunlight energy, then the Calvin Cycle uses that energy to build glucose."},
   {"type":"rectangle","id":"lr","x":190,"y":190,"width":160,"height":70,"backgroundColor":"#fff3bf","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#f59e0b","label":{"text":"Light Reactions","fontSize":16}},
   {"type":"arrow","id":"a1","x":350,"y":225,"width":120,"height":0,"points":[[0,0],[120,0]],"strokeColor":"#1e1e1e","strokeWidth":2,"endArrowhead":"arrow","label":{"text":"ATP","fontSize":14}},
   {"type":"rectangle","id":"cc","x":470,"y":190,"width":160,"height":70,"backgroundColor":"#d0bfff","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#8b5cf6","label":{"text":"Calvin Cycle","fontSize":16}},
@@ -424,10 +437,12 @@ export function registerTools(server: McpServer, distDir: string, store: Checkpo
       title: "Draw Diagram",
       description: `Renders a hand-drawn diagram using Excalidraw elements.
 Elements stream in one by one with draw-on animations.
-Call read_me first to learn the element format.`,
+Call read_me first to learn the element format.
+
+VOICE NARRATION: When the user asks you to narrate, explain aloud, or "speak through" a diagram, interleave {"type":"voice","text":"..."} pseudo-elements. Place voice BEFORE the elements it describes so audio plays while shapes draw on screen. Keep each narration to 1-2 sentences. Example flow: voice → cameraUpdate → shapes → voice → next section. Only use voice narration when explicitly requested.`,
       inputSchema: z.object({
         elements: z.string().describe(
-          "JSON array string of Excalidraw elements. Must be valid JSON — no comments, no trailing commas. Keep compact. Call read_me first for format reference."
+          "JSON array string of Excalidraw elements. Must be valid JSON — no comments, no trailing commas. Keep compact. Call read_me first for format reference. Use {\"type\":\"voice\",\"text\":\"...\"} pseudo-elements to add spoken narration."
         ),
       }),
       annotations: { readOnlyHint: true },
@@ -474,11 +489,11 @@ Call read_me first to learn the element format.`,
           !deleteIds.has(el.id) && !deleteIds.has(el.containerId)
         );
         const newEls = parsed.filter((el: any) =>
-          el.type !== "restoreCheckpoint" && el.type !== "delete"
+          el.type !== "restoreCheckpoint" && el.type !== "delete" && el.type !== "voice"
         );
         resolvedElements = [...baseFiltered, ...newEls];
       } else {
-        resolvedElements = parsed.filter((el: any) => el.type !== "delete");
+        resolvedElements = parsed.filter((el: any) => el.type !== "delete" && el.type !== "voice");
       }
 
       // Check camera aspect ratios — nudge toward 4:3
@@ -495,14 +510,16 @@ Call read_me first to learn the element format.`,
       const checkpointId = crypto.randomUUID().replace(/-/g, "").slice(0, 18);
       await store.save(checkpointId, { elements: resolvedElements });
       return {
-        content: [{ type: "text", text: `Diagram displayed! Checkpoint id: "${checkpointId}".
+        content: [{
+          type: "text", text: `Diagram displayed! Checkpoint id: "${checkpointId}".
 If user asks to create a new diagram - simply create a new one from scratch.
 However, if the user wants to edit something on this diagram "${checkpointId}", take these steps:
 1) read widget context (using read_widget_context tool) to check if user made any manual edits first
 2) decide whether you want to make new diagram from scratch OR - use this one as starting checkpoint:
   simply start from the first element [{"type":"restoreCheckpoint","id":"${checkpointId}"}, ...your new elements...]
   this will use same diagram state as the user currently sees, including any manual edits they made in fullscreen, allowing you to add elements on top.
-  To remove elements, use: {"type":"delete","ids":"<id1>,<id2>"}${ratioHint}` }],
+  To remove elements, use: {"type":"delete","ids":"<id1>,<id2>"}${ratioHint}`
+        }],
         structuredContent: { checkpointId },
       };
     },
@@ -647,12 +664,63 @@ However, if the user wants to edit something on this diagram "${checkpointId}", 
     },
   );
 
+  // ============================================================
+  // Tool 6: tts (private — widget only, text-to-speech via ElevenLabs)
+  // ============================================================
+  registerAppTool(server,
+    "tts",
+    {
+      description: "Convert text to speech audio via ElevenLabs.",
+      inputSchema: { text: z.string().describe("Text to convert to speech") },
+      _meta: { ui: { visibility: ["app"] } },
+    },
+    async ({ text }): Promise<CallToolResult> => {
+      const apiKey = process.env.ELEVENLABS_API_KEY;
+      if (!apiKey) {
+        return { content: [{ type: "text", text: "" }] };
+      }
+      const voiceId = process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM";
+      try {
+        const response = await fetch(
+          `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+          {
+            method: "POST",
+            headers: {
+              "xi-api-key": apiKey,
+              "Content-Type": "application/json",
+              "Accept": "audio/mpeg",
+            },
+            body: JSON.stringify({
+              text,
+              model_id: "eleven_turbo_v2_5",
+              voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+            }),
+          },
+        );
+        if (!response.ok) {
+          return {
+            content: [{ type: "text", text: `TTS error: ${response.status} ${response.statusText}` }],
+            isError: true,
+          };
+        }
+        const arrayBuf = await response.arrayBuffer();
+        const base64 = Buffer.from(arrayBuf).toString("base64");
+        return { content: [{ type: "text", text: base64 }] };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: `TTS failed: ${(err as Error).message}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
   // CSP: allow Excalidraw to load fonts from esm.sh
   const cspMeta = {
     ui: {
       csp: {
-        resourceDomains: ["https://esm.sh"],
-        connectDomains: ["https://esm.sh"],
+        resourceDomains: ["https://esm.sh", "https://api.elevenlabs.io"],
+        connectDomains: ["https://esm.sh", "https://api.elevenlabs.io"],
       },
     },
   };

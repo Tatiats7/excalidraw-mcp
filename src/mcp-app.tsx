@@ -5,6 +5,7 @@ import morphdom from "morphdom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { initPencilAudio, playStroke } from "./pencil-audio";
+import { enqueueTTS, clearVoiceQueue } from "./voice-audio";
 import { captureInitialElements, onEditorChange, setStorageKey, loadPersistedElements, getLatestEditedElements, setCheckpointId } from "./edit-context";
 import "./global.css";
 
@@ -46,7 +47,7 @@ interface ViewportRect {
 /** Convert raw shorthand elements → Excalidraw format (labels → bound text, font fix).
  *  Preserves pseudo-elements like cameraUpdate (not valid Excalidraw types). */
 function convertRawElements(els: any[]): any[] {
-  const pseudoTypes = new Set(["cameraUpdate", "delete", "restoreCheckpoint"]);
+  const pseudoTypes = new Set(["cameraUpdate", "delete", "restoreCheckpoint", "voice"]);
   const pseudos = els.filter((el: any) => pseudoTypes.has(el.type));
   const real = els.filter((el: any) => !pseudoTypes.has(el.type));
   const withDefaults = real.map((el: any) =>
@@ -91,6 +92,8 @@ function extractViewportAndElements(elements: any[]): {
       restoreId = el.id;
     } else if (el.type === "delete") {
       for (const id of String(el.ids ?? el.id).split(",")) deleteIds.add(id.trim());
+    } else if (el.type === "voice") {
+      // Handled by ExcalidrawApp.processVoiceFromInput — skip
     } else {
       drawElements.push(el);
     }
@@ -275,7 +278,7 @@ function DiagramView({ toolInput, isFinal, displayMode, onElements, editedElemen
   const fontsReady = useRef<Promise<void> | null>(null);
   const ensureFontsLoaded = useCallback(() => {
     if (!fontsReady.current) {
-      fontsReady.current = document.fonts.load('20px Excalifont').then(() => {});
+      fontsReady.current = document.fonts.load('20px Excalifont').then(() => { });
     }
     return fontsReady.current;
   }, []);
@@ -312,7 +315,7 @@ function DiagramView({ toolInput, isFinal, displayMode, onElements, editedElemen
     const ratio = w / h;
     const vp4x3: ViewportRect = Math.abs(ratio - 4 / 3) < 0.01 ? animatedVP.current
       : ratio > 4 / 3 ? { x, y, width: w, height: Math.round(w * 3 / 4) }
-      : { x, y, width: Math.round(h * 4 / 3), height: h };
+        : { x, y, width: Math.round(h * 4 / 3), height: h };
     const vb = sceneToSvgViewBox(vp4x3, minX, minY);
     baseViewBoxRef.current = { x: vb.x, y: vb.y, w: vb.w, h: vb.h };
     applyZoom();
@@ -572,7 +575,7 @@ function DiagramView({ toolInput, isFinal, displayMode, onElements, editedElemen
             applyZoom();
           }
         }
-      } catch {}
+      } catch { }
     })();
   }, [editedElements, applyZoom]);
 
@@ -648,6 +651,28 @@ function ExcalidrawApp() {
   const appRef = useRef<App | null>(null);
   const svgViewportRef = useRef<ViewportRect | null>(null);
   const elementsRef = useRef<any[]>([]);
+  const processedVoiceTextsRef = useRef<Set<string>>(new Set());
+
+  /** Extract voice elements from raw input and fire TTS calls directly */
+  const processVoiceFromInput = useCallback((rawElements: any) => {
+    if (!appRef.current) return;
+    try {
+      const str = typeof rawElements === "string" ? rawElements : JSON.stringify(rawElements);
+      const els = parsePartialElements(str);
+      if (!Array.isArray(els) || els.length === 0) return;
+      for (const el of els) {
+        if (el.type === "voice" && el.text && !processedVoiceTextsRef.current.has(el.text)) {
+          processedVoiceTextsRef.current.add(el.text);
+          const app = appRef.current;
+          enqueueTTS(async () => {
+            const result = await app.callServerTool({ name: "tts", arguments: { text: el.text } });
+            if (result.isError) return null;
+            return (result.content[0] as any)?.text ?? null;
+          });
+        }
+      }
+    } catch { }
+  }, []);
   const checkpointIdRef = useRef<string | null>(null);
 
   const toggleFullscreen = useCallback(async () => {
@@ -658,7 +683,7 @@ function ExcalidrawApp() {
     if (newMode === "inline") {
       const edited = getLatestEditedElements();
       if (edited) {
-            setElements(edited);
+        setElements(edited);
         setUserEdits(edited);
       }
     }
@@ -689,7 +714,7 @@ function ExcalidrawApp() {
       document.fonts.load('400 16px Assistant'),
       document.fonts.load('500 16px Assistant'),
       document.fonts.load('700 16px Assistant'),
-    ]).catch(() => {});
+    ]).catch(() => { });
   }, []);
 
   // Set explicit height on html/body in fullscreen (position:fixed doesn't give body height in iframes)
@@ -726,7 +751,7 @@ function ExcalidrawApp() {
     const api = excalidrawApi;
 
     const settle = async () => {
-      try { await document.fonts.load('20px Excalifont'); } catch {}
+      try { await document.fonts.load('20px Excalifont'); } catch { }
       await document.fonts.ready;
 
       const sceneElements = api.getSceneElements();
@@ -756,7 +781,7 @@ function ExcalidrawApp() {
     capabilities: {},
     onAppCreated: (app) => {
       appRef.current = app;
-      _logFn = (msg) => { try { app.sendLog({ level: "info", logger: "FS", data: msg }); } catch {} };
+      _logFn = (msg) => { try { app.sendLog({ level: "info", logger: "FS", data: msg }); } catch { } };
 
       // Capture initial container dimensions
       const initDims = app.getHostContext()?.containerDimensions as any;
@@ -782,12 +807,20 @@ function ExcalidrawApp() {
 
       app.ontoolinputpartial = async (input) => {
         const args = (input as any)?.arguments || input;
-        setInputIsFinal(false);
+        setInputIsFinal((prev) => {
+          if (prev) {
+            clearVoiceQueue();
+            processedVoiceTextsRef.current.clear();
+          }
+          return false;
+        });
+        processVoiceFromInput(args?.elements);
         setToolInput(args);
       };
 
       app.ontoolinput = async (input) => {
         const args = (input as any)?.arguments || input;
+        processVoiceFromInput(args?.elements);
         setInputIsFinal(true);
         setToolInput(args);
       };
