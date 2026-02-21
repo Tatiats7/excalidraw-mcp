@@ -4,8 +4,9 @@ import { Excalidraw, exportToSvg, convertToExcalidrawElements, restore, CaptureU
 import morphdom from "morphdom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { initPencilAudio, playStroke } from "./pencil-audio";
-import { enqueueTTS, clearVoiceQueue } from "./voice-audio";
+import { initPencilAudio, playStroke, startChalkAmbient, stopChalkAmbient } from "./pencil-audio";
+import { enqueueTTS, clearVoiceQueue, getAudioContext, getAnalyserNode, onVoicePlayingChange, setVoiceMuted, isVoiceMuted } from "./voice-audio";
+import AudioMotionAnalyzer from "audiomotion-analyzer";
 import { captureInitialElements, onEditorChange, setStorageKey, loadPersistedElements, getLatestEditedElements, setCheckpointId } from "./edit-context";
 import "./global.css";
 
@@ -248,7 +249,7 @@ function sceneToSvgViewBox(
   };
 }
 
-function DiagramView({ toolInput, isFinal, displayMode, onElements, editedElements, onViewport, loadCheckpoint }: { toolInput: any; isFinal: boolean; displayMode: string; onElements?: (els: any[]) => void; editedElements?: any[]; onViewport?: (vp: ViewportRect) => void; loadCheckpoint?: (id: string) => Promise<{ elements: any[] } | null> }) {
+function DiagramView({ toolInput, isFinal, displayMode, onElements, editedElements, onViewport, loadCheckpoint, voiceGatesOpen, voiceGateVersion }: { toolInput: any; isFinal: boolean; displayMode: string; onElements?: (els: any[]) => void; editedElements?: any[]; onViewport?: (vp: ViewportRect) => void; loadCheckpoint?: (id: string) => Promise<{ elements: any[] } | null>; voiceGatesOpen?: Set<string>; voiceGateVersion?: number }) {
   const svgRef = useRef<HTMLDivElement | null>(null);
   const latestRef = useRef<any[]>([]);
   const restoredRef = useRef<{ id: string; elements: any[] } | null>(null);
@@ -430,6 +431,9 @@ function DiagramView({ toolInput, isFinal, displayMode, onElements, editedElemen
     }
   }, [applyViewBox, animateViewBox, applyZoom]);
 
+  // Track how many elements have had their pencil stroke played (ungated)
+  const strokeCountRef = useRef(0);
+
   useEffect(() => {
     if (!toolInput) return;
     const raw = toolInput.elements;
@@ -439,6 +443,10 @@ function DiagramView({ toolInput, isFinal, displayMode, onElements, editedElemen
     const str = typeof raw === "string" ? raw : JSON.stringify(raw);
 
     if (isFinal) {
+      // Stop chalk ambient when streaming finishes
+      stopChalkAmbient();
+      strokeCountRef.current = 0;
+
       // Final input — parse complete JSON, render ALL elements
       const parsed = parsePartialElements(str);
       let { viewport, drawElements, restoreId, deleteIds } = extractViewportAndElements(parsed);
@@ -463,7 +471,6 @@ function DiagramView({ toolInput, isFinal, displayMode, onElements, editedElemen
           }
         }
 
-        latestRef.current = drawElements;
         // Convert new elements for fullscreen editor
         const convertedNew = convertRawElements(drawElements);
 
@@ -472,11 +479,21 @@ function DiagramView({ toolInput, isFinal, displayMode, onElements, editedElemen
         captureInitialElements(allConverted);
         // Only set elements if user hasn't edited yet (editedElements means user edits exist)
         if (!editedElements) onElements?.(allConverted);
-        if (!editedElements) renderSvgPreview(drawElements, viewport, base);
+
+        // If streaming was active (latestRef has elements), only re-render
+        // with stable seeds — morphdom diffs smoothly without visual jump.
+        // If streaming never ran (e.g. revisiting old chat), render all.
+        if (!editedElements) {
+          latestRef.current = drawElements;
+          renderSvgPreview(drawElements, viewport, base);
+        }
       };
       doFinal();
       return;
     }
+
+    // Start chalk ambient on first streaming partial
+    startChalkAmbient();
 
     // Partial input — drop last (potentially incomplete) element
     const parsed = parsePartialElements(str);
@@ -492,7 +509,36 @@ function DiagramView({ toolInput, isFinal, displayMode, onElements, editedElemen
     }
 
     const safe = excludeIncompleteLastItem(parsed);
-    let { viewport, drawElements } = extractViewportAndElements(safe);
+
+    // Play pencil strokes for ALL elements (ungated) so chalk sound
+    // continues during voice narration. Strokes are decoupled from rendering.
+    const allDraw = extractViewportAndElements(safe).drawElements;
+    if (allDraw.length > strokeCountRef.current) {
+      for (let i = strokeCountRef.current; i < allDraw.length; i++) {
+        playStroke(allDraw[i].type ?? "rectangle");
+      }
+      strokeCountRef.current = allDraw.length;
+    }
+
+    // Gate: stop at the first voice element whose audio hasn't started playing.
+    // This keeps drawing in sync with narration during streaming.
+    // Uses positional IDs (voice_0, voice_1, ...) matching processVoiceFromInput.
+    let gated = safe;
+    if (voiceGatesOpen) {
+      gated = [];
+      let voiceIdx = 0;
+      for (const el of safe) {
+        if (el.type === "voice") {
+          const voiceId = `voice_${voiceIdx++}`;
+          if (!voiceGatesOpen.has(voiceId)) {
+            break; // This voice hasn't started playing — hold back subsequent elements
+          }
+        }
+        gated.push(el);
+      }
+    }
+
+    let { viewport, drawElements } = extractViewportAndElements(gated);
 
     const doStream = async () => {
       // Load checkpoint base (once per restoreId) — from server via callServerTool
@@ -519,11 +565,6 @@ function DiagramView({ toolInput, isFinal, displayMode, onElements, editedElemen
       }
 
       if (drawElements.length > 0 && drawElements.length !== latestRef.current.length) {
-        // Play pencil sound for each new element
-        const prevCount = latestRef.current.length;
-        for (let i = prevCount; i < drawElements.length; i++) {
-          playStroke(drawElements[i].type ?? "rectangle");
-        }
         latestRef.current = drawElements;
         setCount(drawElements.length);
         const jittered = drawElements.map((el: any) => ({ ...el, seed: Math.floor(Math.random() * 1e9) }));
@@ -534,7 +575,8 @@ function DiagramView({ toolInput, isFinal, displayMode, onElements, editedElemen
       }
     };
     doStream();
-  }, [toolInput, isFinal, renderSvgPreview]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- voiceGateVersion triggers re-run when gates open
+  }, [toolInput, isFinal, renderSvgPreview, voiceGatesOpen, voiceGateVersion]);
 
   // Render already-converted elements directly (skip convertToExcalidrawElements)
   useEffect(() => {
@@ -635,6 +677,90 @@ function DiagramView({ toolInput, isFinal, displayMode, onElements, editedElemen
 }
 
 // ============================================================
+// Voice toggle with audioMotion-analyzer visualizer
+// ============================================================
+
+function VoiceToggle({ muted, onToggle }: { muted: boolean; onToggle: () => void }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const motionRef = useRef<AudioMotionAnalyzer | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // Listen for voice playing state
+  useEffect(() => {
+    onVoicePlayingChange((p) => setIsPlaying(p));
+    return () => onVoicePlayingChange(() => { });
+  }, []);
+
+  // Create audioMotion-analyzer once, connect to our AnalyserNode
+  useEffect(() => {
+    if (!containerRef.current || motionRef.current) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 48;
+    canvas.height = 28;
+    containerRef.current.prepend(canvas);
+    canvasRef.current = canvas;
+
+    try {
+      const analyserNode = getAnalyserNode();
+      const ctx = getAudioContext();
+      const motion = new AudioMotionAnalyzer(containerRef.current, {
+        canvas,
+        audioCtx: ctx,
+        connectSpeakers: false,
+        source: analyserNode,
+        mode: 10,
+        gradient: "classic",
+        showBgColor: false,
+        overlay: true,
+        overlayColor: "transparent",
+        showScaleX: false,
+        showScaleY: false,
+        showPeaks: false,
+        reflexRatio: 0,
+        smoothing: 0.7,
+        minFreq: 80,
+        maxFreq: 4000,
+        fillAlpha: 0.6,
+        lineWidth: 0,
+        barSpace: 0.2,
+      } as any);
+      motionRef.current = motion;
+    } catch {
+      // audioMotion may fail if context isn't ready yet — that's fine
+    }
+
+  }, [isPlaying]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`voice-toggle${muted ? " muted" : ""}${isPlaying && !muted ? " playing" : ""}`}
+      onClick={onToggle}
+      title={muted ? "Unmute narration" : "Mute narration"}
+    >
+      {/* Muted icon overlay */}
+      {muted && (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+          <line x1="23" y1="9" x2="17" y2="15" />
+          <line x1="17" y1="9" x2="23" y2="15" />
+        </svg>
+      )}
+      {/* When not playing and not muted, show speaker icon as placeholder */}
+      {!muted && !isPlaying && (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // Main app — Excalidraw only
 // ============================================================
 
@@ -651,25 +777,110 @@ function ExcalidrawApp() {
   const appRef = useRef<App | null>(null);
   const svgViewportRef = useRef<ViewportRect | null>(null);
   const elementsRef = useRef<any[]>([]);
-  const processedVoiceTextsRef = useRef<Set<string>>(new Set());
+  const processedVoiceIdsRef = useRef<Set<string>>(new Set());
+  const voiceGatesOpenRef = useRef<Set<string>>(new Set());
+  const voiceGateTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  /** Tracks how many drawn elements were visible when mute was pressed.
+   *  On unmute, only voice elements whose subsequent shapes haven't drawn
+   *  yet are re-enqueued — prevents replaying old narration. */
+  const muteDrawIndexRef = useRef<number>(0);
+  const [voiceGateVersion, setVoiceGateVersion] = useState(0);
+  const [voiceMuted, setVoiceMutedState] = useState(() => localStorage.getItem("excalidraw:voiceMuted") === "true");
+  const [hasVoice, setHasVoice] = useState(false);
 
-  /** Extract voice elements from raw input and fire TTS calls directly */
+  const toggleVoiceMuted = useCallback(() => {
+    setVoiceMutedState((prev) => {
+      const next = !prev;
+      localStorage.setItem("excalidraw:voiceMuted", String(next));
+      setVoiceMuted(next);
+      if (next) {
+        clearVoiceQueue();
+        // Record how far drawing has progressed — voices before this
+        // point should NOT replay when unmuted
+        muteDrawIndexRef.current = processedVoiceIdsRef.current.size;
+      } else {
+        // Unmuting — only allow re-processing of voice IDs that were
+        // added AFTER the mute point. Voices before that point already
+        // had their shapes drawn, so replaying them would desync.
+        let idx = 0;
+        for (const id of processedVoiceIdsRef.current) {
+          if (idx >= muteDrawIndexRef.current) {
+            // This voice was added while muted and hasn't been heard
+            processedVoiceIdsRef.current.delete(id);
+          }
+          idx++;
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  // Initialize mute state on mount + cleanup gate timers on unmount
+  useEffect(() => {
+    setVoiceMuted(voiceMuted);
+    return () => {
+      for (const timer of voiceGateTimersRef.current.values()) {
+        clearTimeout(timer);
+      }
+      voiceGateTimersRef.current.clear();
+    };
+  }, []);
+
+  /** Extract voice elements from raw input, fire TTS calls, and gate drawing.
+   *  Uses positional IDs (voice_0, voice_1, ...) instead of text content
+   *  so duplicate narration texts don't collide. */
   const processVoiceFromInput = useCallback((rawElements: any) => {
     if (!appRef.current) return;
     try {
       const str = typeof rawElements === "string" ? rawElements : JSON.stringify(rawElements);
       const els = parsePartialElements(str);
       if (!Array.isArray(els) || els.length === 0) return;
+      let voiceIndex = 0;
       for (const el of els) {
-        if (el.type === "voice" && el.text && !processedVoiceTextsRef.current.has(el.text)) {
-          processedVoiceTextsRef.current.add(el.text);
-          const app = appRef.current;
-          enqueueTTS(async () => {
-            const result = await app.callServerTool({ name: "tts", arguments: { text: el.text } });
-            if (result.isError) return null;
-            return (result.content[0] as any)?.text ?? null;
-          });
+        if (el.type !== "voice" || !el.text) continue;
+        const voiceId = `voice_${voiceIndex++}`;
+        if (processedVoiceIdsRef.current.has(voiceId)) continue;
+        processedVoiceIdsRef.current.add(voiceId);
+        setHasVoice(true);
+        // When muted, open the gate immediately so drawing isn't blocked
+        if (isVoiceMuted()) {
+          voiceGatesOpenRef.current.add(voiceId);
+          setVoiceGateVersion((v) => v + 1);
+          continue;
         }
+        const app = appRef.current;
+        const voiceText = el.text;
+
+        // Safety timeout: if TTS doesn't start within 5s, open the gate
+        // anyway so drawing isn't stuck forever
+        const gateTimer = setTimeout(() => {
+          voiceGateTimersRef.current.delete(voiceId);
+          if (!voiceGatesOpenRef.current.has(voiceId)) {
+            voiceGatesOpenRef.current.add(voiceId);
+            setVoiceGateVersion((v) => v + 1);
+          }
+        }, 5000);
+        voiceGateTimersRef.current.set(voiceId, gateTimer);
+
+        const { finished } = enqueueTTS(async (signal: AbortSignal) => {
+          const result = await app.callServerTool({ name: "tts", arguments: { text: voiceText } });
+          if (signal.aborted) return null;
+          if (result.isError) return null;
+          return (result.content[0] as any)?.text ?? null;
+        });
+        // When this voice FINISHES playing (or is cleared/skipped),
+        // open the gate so drawing of the next section resumes.
+        // This keeps narration and drawing in tight lockstep.
+        finished.then(() => {
+          // Clear the safety timeout
+          const timer = voiceGateTimersRef.current.get(voiceId);
+          if (timer) {
+            clearTimeout(timer);
+            voiceGateTimersRef.current.delete(voiceId);
+          }
+          voiceGatesOpenRef.current.add(voiceId);
+          setVoiceGateVersion((v) => v + 1);
+        });
       }
     } catch { }
   }, []);
@@ -809,8 +1020,16 @@ function ExcalidrawApp() {
         const args = (input as any)?.arguments || input;
         setInputIsFinal((prev) => {
           if (prev) {
+            // New tool call starting — reset all voice/streaming state
             clearVoiceQueue();
-            processedVoiceTextsRef.current.clear();
+            processedVoiceIdsRef.current.clear();
+            voiceGatesOpenRef.current.clear();
+            muteDrawIndexRef.current = 0;
+            // Clear any pending gate timers
+            for (const timer of voiceGateTimersRef.current.values()) {
+              clearTimeout(timer);
+            }
+            voiceGateTimersRef.current.clear();
           }
           return false;
         });
@@ -820,7 +1039,9 @@ function ExcalidrawApp() {
 
       app.ontoolinput = async (input) => {
         const args = (input as any)?.arguments || input;
-        processVoiceFromInput(args?.elements);
+        // Don't process voice here — voice only triggers during streaming
+        // (ontoolinputpartial). This prevents replay when revisiting old chats,
+        // which only fire ontoolinput without prior partials.
         setInputIsFinal(true);
         setToolInput(args);
       };
@@ -854,6 +1075,9 @@ function ExcalidrawApp() {
     <main className={`main${displayMode === "fullscreen" ? " fullscreen" : ""}`} style={displayMode === "fullscreen" && containerHeight ? { height: containerHeight } : undefined}>
       {displayMode === "inline" && (
         <div className="toolbar">
+          {hasVoice && (
+            <VoiceToggle muted={voiceMuted} onToggle={toggleVoiceMuted} />
+          )}
           <button
             className="fullscreen-btn"
             onClick={toggleFullscreen}
@@ -893,7 +1117,7 @@ function ExcalidrawApp() {
           onClick={undefined}
           style={undefined}
         >
-          <DiagramView toolInput={toolInput} isFinal={inputIsFinal} displayMode={displayMode} onElements={(els) => { elementsRef.current = els; setElements(els); }} editedElements={userEdits ?? undefined} onViewport={(vp) => { svgViewportRef.current = vp; }} loadCheckpoint={async (id) => {
+          <DiagramView toolInput={toolInput} isFinal={inputIsFinal} displayMode={displayMode} onElements={(els) => { elementsRef.current = els; setElements(els); }} editedElements={userEdits ?? undefined} onViewport={(vp) => { svgViewportRef.current = vp; }} voiceGatesOpen={voiceGatesOpenRef.current} voiceGateVersion={voiceGateVersion} loadCheckpoint={async (id) => {
             if (!appRef.current) return null;
             try {
               const result = await appRef.current.callServerTool({ name: "read_checkpoint", arguments: { id } });

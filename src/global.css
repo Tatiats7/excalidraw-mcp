@@ -103,10 +103,72 @@ body {
   z-index: 100;
   opacity: 0;
   transition: opacity 0.2s ease;
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  align-items: center;
 }
 
 .main:hover .toolbar {
   opacity: 1;
+}
+
+/* Voice toggle */
+.voice-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 28px;
+  padding: 0;
+  color: rgba(0, 0, 0, 0.45);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.voice-toggle:hover {
+  color: rgba(0, 0, 0, 0.7);
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.voice-toggle canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 6px;
+}
+
+.voice-toggle svg {
+  position: relative;
+  z-index: 1;
+}
+
+.voice-toggle.muted {
+  opacity: 0.6;
+}
+
+.voice-toggle.muted canvas {
+  display: none;
+}
+
+.voice-toggle.playing canvas {
+  opacity: 1;
+}
+
+/* Hide voice toggle in fullscreen mode */
+.main.fullscreen .voice-toggle {
+  display: none !important;
 }
 
 /* Fullscreen button */

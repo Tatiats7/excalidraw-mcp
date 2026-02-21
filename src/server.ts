@@ -116,7 +116,7 @@ fixedPoint: top=[0.5,0], bottom=[0.5,1], left=[0,0.5], right=[1,0.5]
 **voice** (pseudo-element — triggers text-to-speech narration):
 \`{ "type": "voice", "text": "This is the input layer of the neural network." }\`
 - Place BEFORE the elements it describes — audio starts while shapes draw on screen
-- Keep narrations short: maximum 1 sentence per voice element (longer text = more latency)
+- Keep narrations very very short: maximum 1 sentence per voice element (longer text = more latency)
 - Interleave with drawing: voice → cameraUpdate → shapes for that section → voice → next section
 - No \`id\` needed — this is not a drawn element
 - Silently ignored if TTS is not configured on the server
@@ -178,11 +178,11 @@ Tip: For large diagrams, emit a cameraUpdate to focus on each section as you dra
 
 ## Diagram Example
 
-Example prompt: "Explain how photosynthesis works"
+Example prompt: "Explain how photosynthesis works and narrate at the same time"
 
 Uses 2 camera positions: start zoomed in (M) for title, then zoom out (L) to reveal the full diagram. Sun art drawn last as a finishing touch. Voice narrations interleaved to explain each section as it appears.
 
-- **Voice 1**: Introduce the topic as the title appears
+- **Voice 1**: Introduce the topic very shortly as the title appears
 - **Camera 1** (400x300): Draw the title "Photosynthesis" and formula subtitle zoomed in
 - **Voice 2**: Transition narration as camera zooms out
 - **Camera 2** (800x600): Zoom out — draw the leaf zone, process flow (Light Reactions → Calvin Cycle), inputs (Sunlight, Water, CO2), outputs (O2, Glucose), and finally a cute 8-ray sun
@@ -439,7 +439,7 @@ export function registerTools(server: McpServer, distDir: string, store: Checkpo
 Elements stream in one by one with draw-on animations.
 Call read_me first to learn the element format.
 
-VOICE NARRATION: When the user asks you to narrate, explain aloud, or "speak through" a diagram, interleave {"type":"voice","text":"..."} pseudo-elements. Place voice BEFORE the elements it describes so audio plays while shapes draw on screen. Keep each narration to 1-2 sentences. Example flow: voice → cameraUpdate → shapes → voice → next section. Only use voice narration when explicitly requested.`,
+VOICE NARRATION: When the user asks you to narrate, explain aloud, or "speak through" a diagram, interleave {"type":"voice","text":"..."} pseudo-elements. Place voice BEFORE the elements it describes so audio plays while shapes draw on screen. Keep each narration max 1 sentence. Example flow: voice → cameraUpdate → shapes → voice → next section. Only use voice narration when explicitly requested.`,
       inputSchema: z.object({
         elements: z.string().describe(
           "JSON array string of Excalidraw elements. Must be valid JSON — no comments, no trailing commas. Keep compact. Call read_me first for format reference. Use {\"type\":\"voice\",\"text\":\"...\"} pseudo-elements to add spoken narration."
