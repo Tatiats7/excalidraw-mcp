@@ -114,10 +114,11 @@ fixedPoint: top=[0.5,0], bottom=[0.5,1], left=[0,0.5], right=[1,0.5]
 - Never reuse a deleted id — always assign new ids to replacements
 
 **voice** (pseudo-element — triggers text-to-speech narration):
-\`{ "type": "voice", "text": "This is the input layer of the neural network." }\`
-- Place BEFORE the elements it describes — audio starts while shapes draw on screen
-- Keep narrations very very short: maximum 1 sentence per voice element (longer text = more latency)
-- Interleave with drawing: voice → cameraUpdate → shapes for that section → voice → next section
+\`{ "type": "voice", "text": "Here is the input layer." }\`
+- **Drawing PAUSES at each voice element** until audio finishes playing (max 5s wait). Then shapes after it draw. This keeps narration and drawing in sync — but ONLY if each voice is short.
+- Keep each voice under ~8 words (2–3 seconds of audio). If voice takes longer than 5s, drawing resumes while audio continues in background = desync.
+- Place BEFORE the 1–2 elements it describes: voice → cameraUpdate → 1–2 shapes → voice → next shapes
+- Use voice FREQUENTLY between small groups of elements. Never put more than 2–3 shapes between voice elements.
 - No \`id\` needed — this is not a drawn element
 - Silently ignored if TTS is not configured on the server
 
@@ -126,6 +127,23 @@ fixedPoint: top=[0.5,0], bottom=[0.5,1], left=[0,0.5], right=[1,0.5]
 - **Emit progressively**: background → shape → its label → its arrows → next shape
 - BAD: all rectangles → all texts → all arrows
 - GOOD: bg_shape → shape1 → text1 → arrow1 → shape2 → text2 → ...
+
+### Voice + Drawing Sync (how it actually works)
+Each voice element acts as a **pause gate**. Drawing stops at the voice and waits up to 5 seconds for the audio to finish. Then drawing resumes until the next voice.
+
+- Voice < 5s (short sentence) → drawing waits for audio to finish → **perfect sync**
+- Voice > 5s (long sentence) → drawing resumes at 5s while audio continues → **desynced**
+
+For smooth narrated presentations, follow this rhythm:
+\`voice (short) → camera → 1–2 shapes → voice (short) → 1–2 shapes → voice (short) → ...\`
+
+BAD patterns:
+- \`voice("long 20-word explanation...") → 10 shapes\` — drawing frozen for 5s, then 10 shapes dump at once while audio still going
+- \`10 shapes → voice("here is what you see")\` — everything draws silently, then voice plays over static image
+- \`voice → 8 shapes → voice\` — too many shapes between voices, long silent drawing gap
+
+GOOD pattern:
+- \`voice("Input layer.") → camera → 2 shapes → voice("Now the connections.") → 2 arrows → voice("And the output.") → 1 shape\`
 
 ### Example: Two connected labeled boxes
 \`\`\`json
@@ -180,37 +198,41 @@ Tip: For large diagrams, emit a cameraUpdate to focus on each section as you dra
 
 Example prompt: "Explain how photosynthesis works and narrate at the same time"
 
-Uses 2 camera positions: start zoomed in (M) for title, then zoom out (L) to reveal the full diagram. Sun art drawn last as a finishing touch. Voice narrations interleaved to explain each section as it appears.
+Uses 2 camera positions: start zoomed in (M) for title, then zoom out (L) to reveal the full diagram. Sun art drawn last as a finishing touch.
 
-- **Voice 1**: Introduce the topic very shortly as the title appears
-- **Camera 1** (400x300): Draw the title "Photosynthesis" and formula subtitle zoomed in
-- **Voice 2**: Transition narration as camera zooms out
-- **Camera 2** (800x600): Zoom out — draw the leaf zone, process flow (Light Reactions → Calvin Cycle), inputs (Sunlight, Water, CO2), outputs (O2, Glucose), and finally a cute 8-ray sun
+**Voice technique**: Notice how each voice is very short (~5–8 words), placed before just 1–2 elements. This keeps narration and drawing perfectly in sync — the user hears a short phrase, sees those shapes appear, hears the next phrase, sees next shapes. Like a teacher at a whiteboard.
 
 \`\`\`json
 [
-  {"type":"voice","text":"Let me walk you through how photosynthesis works — the process that powers nearly all life on Earth."},
+  {"type":"voice","text":"Let's explore photosynthesis."},
   {"type":"cameraUpdate","width":400,"height":300,"x":200,"y":-20},
   {"type":"text","id":"ti","x":280,"y":10,"text":"Photosynthesis","fontSize":28,"strokeColor":"#1e1e1e"},
   {"type":"text","id":"fo","x":245,"y":48,"text":"6CO2 + 6H2O --> C6H12O6 + 6O2","fontSize":16,"strokeColor":"#757575"},
-  {"type":"voice","text":"Here's the overall formula. Now let's zoom out and see the full process inside a leaf."},
+  {"type":"voice","text":"Now let's zoom out."},
   {"type":"cameraUpdate","width":800,"height":600,"x":0,"y":-20},
   {"type":"rectangle","id":"lf","x":150,"y":90,"width":520,"height":380,"backgroundColor":"#d3f9d8","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#22c55e","strokeWidth":1,"opacity":35},
   {"type":"text","id":"lfl","x":170,"y":96,"text":"Inside the Leaf","fontSize":16,"strokeColor":"#15803d"},
-  {"type":"voice","text":"Inside the leaf, photosynthesis happens in two stages. Light reactions capture sunlight energy, then the Calvin Cycle uses that energy to build glucose."},
+  {"type":"voice","text":"It happens in two stages."},
   {"type":"rectangle","id":"lr","x":190,"y":190,"width":160,"height":70,"backgroundColor":"#fff3bf","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#f59e0b","label":{"text":"Light Reactions","fontSize":16}},
   {"type":"arrow","id":"a1","x":350,"y":225,"width":120,"height":0,"points":[[0,0],[120,0]],"strokeColor":"#1e1e1e","strokeWidth":2,"endArrowhead":"arrow","label":{"text":"ATP","fontSize":14}},
+  {"type":"voice","text":"Then the Calvin Cycle."},
   {"type":"rectangle","id":"cc","x":470,"y":190,"width":160,"height":70,"backgroundColor":"#d0bfff","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#8b5cf6","label":{"text":"Calvin Cycle","fontSize":16}},
+  {"type":"voice","text":"Sunlight powers the reaction."},
   {"type":"rectangle","id":"sl","x":10,"y":200,"width":120,"height":50,"backgroundColor":"#fff3bf","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#f59e0b","label":{"text":"Sunlight","fontSize":16}},
   {"type":"arrow","id":"a2","x":130,"y":225,"width":60,"height":0,"points":[[0,0],[60,0]],"strokeColor":"#f59e0b","strokeWidth":2,"endArrowhead":"arrow"},
+  {"type":"voice","text":"Water feeds in from below."},
   {"type":"rectangle","id":"wa","x":200,"y":360,"width":140,"height":50,"backgroundColor":"#a5d8ff","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#4a9eed","label":{"text":"Water (H2O)","fontSize":16}},
   {"type":"arrow","id":"a3","x":270,"y":360,"width":0,"height":-100,"points":[[0,0],[0,-100]],"strokeColor":"#4a9eed","strokeWidth":2,"endArrowhead":"arrow"},
+  {"type":"voice","text":"CO2 enters too."},
   {"type":"rectangle","id":"co","x":480,"y":360,"width":130,"height":50,"backgroundColor":"#ffd8a8","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#f59e0b","label":{"text":"CO2","fontSize":16}},
   {"type":"arrow","id":"a4","x":545,"y":360,"width":0,"height":-100,"points":[[0,0],[0,-100]],"strokeColor":"#f59e0b","strokeWidth":2,"endArrowhead":"arrow"},
+  {"type":"voice","text":"Oxygen is released."},
   {"type":"rectangle","id":"ox","x":540,"y":100,"width":100,"height":40,"backgroundColor":"#ffc9c9","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#ef4444","label":{"text":"O2","fontSize":16}},
   {"type":"arrow","id":"a5","x":310,"y":190,"width":230,"height":-50,"points":[[0,0],[230,-50]],"strokeColor":"#ef4444","strokeWidth":2,"endArrowhead":"arrow"},
+  {"type":"voice","text":"And glucose is the output."},
   {"type":"rectangle","id":"gl","x":690,"y":195,"width":120,"height":60,"backgroundColor":"#c3fae8","fillStyle":"solid","roundness":{"type":3},"strokeColor":"#22c55e","label":{"text":"Glucose","fontSize":18}},
   {"type":"arrow","id":"a6","x":630,"y":225,"width":60,"height":0,"points":[[0,0],[60,0]],"strokeColor":"#22c55e","strokeWidth":2,"endArrowhead":"arrow"},
+  {"type":"voice","text":"Here's our sun."},
   {"type":"ellipse","id":"sun","x":30,"y":110,"width":50,"height":50,"backgroundColor":"#fff3bf","fillStyle":"solid","strokeColor":"#f59e0b","strokeWidth":2},
   {"type":"arrow","id":"r1","x":55,"y":108,"width":0,"height":-14,"points":[[0,0],[0,-14]],"strokeColor":"#f59e0b","strokeWidth":2,"endArrowhead":null,"startArrowhead":null},
   {"type":"arrow","id":"r2","x":55,"y":162,"width":0,"height":14,"points":[[0,0],[0,14]],"strokeColor":"#f59e0b","strokeWidth":2,"endArrowhead":null,"startArrowhead":null},
@@ -229,6 +251,7 @@ Common mistakes to avoid:
 - **Arrow labels need space** — long labels like "ATP + NADPH" overflow short arrows. Keep labels short or make arrows wider
 - **Elements overlap when y-coordinates are close** — always check that text, boxes, and labels don't stack on top of each other (e.g., an output box overlapping a zone label)
 - **Draw art/illustrations LAST** — cute decorations (sun, stars, icons) should appear as the final drawing step so they don't distract from the main content being built
+- **Voice too long = desync** — if a voice clip takes more than 5 seconds to speak, drawing resumes while audio continues in background. Keep each voice under ~8 words.
 
 ## Sequence flow Diagram Example
 
@@ -439,7 +462,7 @@ export function registerTools(server: McpServer, distDir: string, store: Checkpo
 Elements stream in one by one with draw-on animations.
 Call read_me first to learn the element format.
 
-VOICE NARRATION: When the user asks you to narrate, explain aloud, or "speak through" a diagram, interleave {"type":"voice","text":"..."} pseudo-elements. Place voice BEFORE the elements it describes so audio plays while shapes draw on screen. Keep each narration max 1 sentence. Example flow: voice → cameraUpdate → shapes → voice → next section. Only use voice narration when explicitly requested.`,
+VOICE NARRATION: When the user asks you to narrate, explain aloud, or "speak through" a diagram, interleave {"type":"voice","text":"..."} pseudo-elements throughout the array. Drawing PAUSES at each voice until audio finishes (max 5s), keeping narration and visuals in sync. Keep each voice under ~8 words so audio finishes before the 5s timeout. Pattern: voice → camera → 1-2 shapes → voice → 1-2 shapes. Use voice frequently — never leave more than 2-3 shapes without a voice between them. Only use voice narration when explicitly requested.`,
       inputSchema: z.object({
         elements: z.string().describe(
           "JSON array string of Excalidraw elements. Must be valid JSON — no comments, no trailing commas. Keep compact. Call read_me first for format reference. Use {\"type\":\"voice\",\"text\":\"...\"} pseudo-elements to add spoken narration."
@@ -679,7 +702,7 @@ However, if the user wants to edit something on this diagram "${checkpointId}", 
       if (!apiKey) {
         return { content: [{ type: "text", text: "" }] };
       }
-      const voiceId = process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM";
+      const voiceId = process.env.ELEVENLABS_VOICE_ID || "auq43ws1oslv0tO4BDa7";
       try {
         const response = await fetch(
           `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,

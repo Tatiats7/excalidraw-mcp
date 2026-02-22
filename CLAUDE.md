@@ -56,6 +56,9 @@ Set on the resource content's `_meta.ui` so the host renders a border/background
 ### Fullscreen mode
 Supports `app.requestDisplayMode({ mode: "fullscreen" })`. Button appears on hover (top-right), hidden in fullscreen (host provides exit UI). Escape key exits fullscreen.
 
+### Voice narration with pause gates
+`{"type":"voice","text":"..."}` pseudo-elements trigger TTS. Drawing **pauses** at each voice element until audio finishes (max 5s timeout). Keep voice under ~8 words for sync. Pattern: `voice → camera → 1-2 shapes → voice → next shapes`. See [HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) for detailed timing flow.
+
 ## Checkpoint System
 
 Two-tier storage for diagram state persistence:

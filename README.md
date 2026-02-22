@@ -83,6 +83,8 @@ If no voice ID is provided, the default ElevenLabs voice is used.
 
 **Note:** Voice narration is not automatic — you need to explicitly ask the model to narrate (e.g. "draw a diagram explaining photosynthesis and speak through it").
 
+**Voice Sync:** Drawing pauses at each voice element until audio finishes (max 5s wait). Keep each voice under ~8 words for perfect sync between narration and visuals.
+
 ## What are MCP Apps and how can I build one?
 
 Text responses can only go so far. Sometimes users need to interact with data, not just read about it. [MCP Apps](https://github.com/modelcontextprotocol/ext-apps/) is an official Model Context Protocol extension that lets servers return interactive HTML interfaces (data visualizations, forms, dashboards) that render directly in the chat.
