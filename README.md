@@ -1,4 +1,4 @@
-# Excalidraw MCP App Server
+# Excalidraw MCP App Server with Narration!
 
 MCP server that streams hand-drawn Excalidraw diagrams with smooth viewport camera control and interactive fullscreen editing.
 
